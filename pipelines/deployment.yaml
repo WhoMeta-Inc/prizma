@@ -1,0 +1,128 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scrapydweb
+  namespace: scraper
+  labels:
+    app: falcrumweb
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: falcrumweb
+  template:
+    metadata:
+      labels:
+        app: falcrumweb
+    spec:
+      serviceAccountName: acr-sa
+      imagePullSecrets:
+      - name: acr-auth
+      containers:
+      - image: wmacs.azurecr.io/whometa/falcrumweb:#{Build.BuildId}#
+        imagePullPolicy: IfNotPresent
+        name: falcrumweb
+        ports:
+        - containerPort: 5000
+          name: scrapydweb
+          protocol: TCP
+        - containerPort: 6800
+          name: scrapydserver
+          protocol: TCP
+        volumeMounts:
+        - name: "eggs"
+          mountPath: /app/eggs
+        - name: "data"
+          mountPath: /app/data
+        - name: "dbs"
+          mountPath: /app/dbs
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: falcrumweb-pvc
+      - name: dbs
+        persistentVolumeClaim:
+          claimName: falcrumdbs-pvc
+      - name: eggs
+        persistentVolumeClaim:
+          claimName: falcrumeggs-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: falcrumweb-pvc
+  namespace: scraper
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: managed-premium-retain-sc
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: falcrumdbs-pvc
+  namespace: scraper
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: managed-premium-retain-sc
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: falcrumeggs-pvc
+  namespace: scraper
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: managed-premium-retain-sc
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: falcrumweb-svc
+  namespace: scraper
+spec:
+  selector:
+    app: falcrumweb
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 5000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: portia-ingress
+  namespace: scraper
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: letsencrypt-azure
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - hub.scraper.whometa.eu
+    secretName: portia-tls
+  rules:
+  - host: hub.scraper.whometa.eu
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: falcrumweb-svc
+            port:
+              number: 5000

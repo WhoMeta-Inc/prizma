@@ -46,9 +46,11 @@ PASSWORD = ''
 #   - it's recommended to pass in a tuple of 5 elements.
 #   - e.g. ('', '', '127.0.0.1', '6800', '') or ('username', 'password', 'localhost', '6801', 'group')
 SCRAPYD_SERVERS = [
-    '127.0.0.1:6800',
+       'http://localhost:6801',
+    'http://localhost:6802',
+    'http://localhost:6803',
     # 'username:password@localhost:6801#group',
-    ('username', 'password', 'localhost', '6801', 'group'),
+    #('username', 'password', 'localhost', '6801', 'group'),
 ]
 
 
